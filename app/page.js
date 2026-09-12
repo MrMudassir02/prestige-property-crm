@@ -1,69 +1,284 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
 
 export default function Home() {
+  const [plots, setPlots] = useState([]);
+
+  const [selectedCity, setSelectedCity] = useState("All Cities");
+
+  const [selectedProject, setSelectedProject] = useState("All Projects");
+
+  const [loading, setLoading] = useState(true);
+
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetchPlots();
+  }, []);
+
+  async function fetchPlots() {
+    try {
+      setLoading(true);
+
+      setError("");
+
+      const response = await fetch("/api/plots");
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch plots");
+      }
+
+      const data = await response.json();
+
+      console.log("Public plots:", data);
+
+      setPlots(data.plots || []);
+    } catch (error) {
+      console.error("Fetch plots error:", error);
+
+      setError("Unable to load properties. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // UNIQUE CITIES
+
+  const cities = [
+    ...new Set(plots.map((plot) => plot.project?.city?.name).filter(Boolean)),
+  ];
+
+  // PROJECTS BASED ON SELECTED CITY
+
+  const projects = [
+    ...new Set(
+      plots
+        .filter((plot) => {
+          if (selectedCity === "All Cities") {
+            return true;
+          }
+
+          return plot.project?.city?.name === selectedCity;
+        })
+        .map((plot) => plot.project?.name)
+        .filter(Boolean)
+    ),
+  ];
+
+  // FINAL FILTERED PLOTS
+
+  const filteredPlots = plots.filter((plot) => {
+    const cityName = plot.project?.city?.name;
+
+    const projectName = plot.project?.name;
+
+    const cityMatches =
+      selectedCity === "All Cities" || cityName === selectedCity;
+
+    const projectMatches =
+      selectedProject === "All Projects" || projectName === selectedProject;
+
+    return cityMatches && projectMatches;
+  });
+
+  function handleCityChange(city) {
+    setSelectedCity(city);
+
+    // Reset project when city changes
+
+    setSelectedProject("All Projects");
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.js
-            </code>{" "}
-            file.
+    <main className="min-h-screen bg-[#f7f7f5]">
+      {/* HERO */}
+
+      <section className="border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-6 py-16 md:py-24">
+          <p className="text-xs font-semibold tracking-[0.25em] text-[#3f6f5f] uppercase">
+            Prestige Property
+          </p>
+
+          <h1 className="mt-5 text-5xl md:text-7xl font-bold tracking-tight text-[#182033]">
+            Find your ideal plot.
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+
+          <p className="mt-5 text-lg text-gray-600 max-w-xl">
+            Browse available plots across premium projects and locations.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      {/* PROPERTIES */}
+
+      <section className="max-w-6xl mx-auto px-6 py-12 md:py-16">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-bold text-[#273142]">
+            Available Properties
+          </h2>
+
+          <p className="mt-2 text-gray-600">
+            Search plots by city and project.
+          </p>
         </div>
-      </main>
-    </div>
+
+        {/* CITY FILTER */}
+
+        <div className="mt-8">
+          <p className="text-sm font-semibold text-gray-700 mb-3">
+            Select City
+          </p>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => handleCityChange("All Cities")}
+              className={`px-5 py-3 rounded-full text-sm font-semibold transition ${
+                selectedCity === "All Cities"
+                  ? "bg-[#3f6f5f] text-white"
+                  : "bg-white border border-gray-200 text-gray-700 hover:border-[#3f6f5f]"
+              }`}
+            >
+              All Cities
+            </button>
+
+            {cities.map((city) => (
+              <button
+                key={city}
+                onClick={() => handleCityChange(city)}
+                className={`px-5 py-3 rounded-full text-sm font-semibold transition ${
+                  selectedCity === city
+                    ? "bg-[#3f6f5f] text-white"
+                    : "bg-white border border-gray-200 text-gray-700 hover:border-[#3f6f5f]"
+                }`}
+              >
+                {city}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* PROJECT FILTER */}
+
+        <div className="mt-8">
+          <p className="text-sm font-semibold text-gray-700 mb-3">
+            Select Project
+          </p>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => setSelectedProject("All Projects")}
+              className={`px-5 py-3 rounded-full text-sm font-semibold transition ${
+                selectedProject === "All Projects"
+                  ? "bg-[#182033] text-white"
+                  : "bg-white border border-gray-200 text-gray-700 hover:border-[#182033]"
+              }`}
+            >
+              All Projects
+            </button>
+
+            {projects.map((project) => (
+              <button
+                key={project}
+                onClick={() => setSelectedProject(project)}
+                className={`px-5 py-3 rounded-full text-sm font-semibold transition ${
+                  selectedProject === project
+                    ? "bg-[#182033] text-white"
+                    : "bg-white border border-gray-200 text-gray-700 hover:border-[#182033]"
+                }`}
+              >
+                {project}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* LOADING */}
+
+        {loading && (
+          <div className="mt-8 bg-white border border-gray-200 rounded-2xl p-8">
+            <p className="text-gray-500">Loading available properties...</p>
+          </div>
+        )}
+
+        {/* ERROR */}
+
+        {!loading && error && (
+          <div className="mt-8 bg-red-50 border border-red-200 rounded-2xl p-8">
+            <p className="text-red-600">{error}</p>
+          </div>
+        )}
+
+        {/* NO PROPERTIES */}
+
+        {!loading && !error && filteredPlots.length === 0 && (
+          <div className="mt-8 bg-white border border-gray-200 rounded-2xl p-8">
+            <p className="text-gray-600">No plots found for this selection.</p>
+          </div>
+        )}
+
+        {/* PLOT GRID */}
+
+        {!loading && !error && filteredPlots.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+            {filteredPlots.map((plot) => (
+              <div
+                key={plot._id}
+                className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition"
+              >
+                <div className="h-52 bg-gradient-to-br from-[#e8f0ec] to-[#d6e2dc] flex items-center justify-center">
+                  <span className="text-5xl">🏡</span>
+                </div>
+
+                <div className="p-6">
+                  <div className="flex justify-between items-start gap-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-[#182033]">
+                        Plot {plot.plotNumber}
+                      </h3>
+
+                      <p className="mt-1 text-sm text-gray-500">
+                        {plot.project?.name}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        plot.status === "available"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-yellow-100 text-yellow-700"
+                      }`}
+                    >
+                      {plot.status}
+                    </span>
+                  </div>
+
+                  <p className="mt-5 text-gray-600">
+                    📍 {plot.project?.city?.name}, {plot.project?.city?.state}
+                  </p>
+
+                  <p className="mt-3 text-gray-600">
+                    📐 {plot.size} {plot.unit}
+                  </p>
+
+                  <p className="mt-3 text-gray-600">🧭 Facing: {plot.facing}</p>
+
+                  <p className="mt-5 text-2xl font-bold text-[#3f6f5f]">
+                    ₹ {Number(plot.price).toLocaleString("en-IN")}
+                  </p>
+                  <Link
+                    href={`/properties/${plot._id}`}
+                    className="mt-6 w-full bg-[#3f6f5f] text-white py-3 rounded-xl font-semibold hover:bg-[#345f51] transition text-center block"
+                  >
+                    View Property
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
   );
 }
