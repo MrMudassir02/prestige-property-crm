@@ -2,12 +2,21 @@ import mongoose from "mongoose";
 
 const EnquirySchema = new mongoose.Schema(
   {
+    // LOGGED-IN USER
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    // CUSTOMER CONTACT DETAILS
     customer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Customer",
       required: true,
     },
 
+    // SELECTED PROPERTY
     plot: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Plot",

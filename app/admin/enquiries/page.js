@@ -21,21 +21,20 @@ export default function AdminEnquiries() {
       setLoading(true);
       setError("");
 
-      const response = await fetch("/api/enquiries");
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch enquiries");
-      }
+      const response = await fetch("/api/enquiries", {
+        credentials: "include",
+      });
 
       const data = await response.json();
 
-      console.log("Admin enquiries:", data);
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to fetch enquiries");
+      }
 
-      setEnquiries(data.data || []);
+      setEnquiries(data.data);
     } catch (error) {
-      console.error("Enquiries fetch error:", error);
-
-      setError("Unable to load enquiries.");
+      console.error("Failed to fetch enquiries:", error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
@@ -51,6 +50,8 @@ export default function AdminEnquiries() {
 
       const response = await fetch(`/api/enquiries/${enquiryId}`, {
         method: "PATCH",
+
+        credentials: "include",
 
         headers: {
           "Content-Type": "application/json",

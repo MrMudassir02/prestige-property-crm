@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
 
 export default function Home() {
   const [plots, setPlots] = useState([]);
@@ -97,7 +98,7 @@ export default function Home() {
 
       <section className="border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-6 py-16 md:py-24">
-          <p className="text-xs font-semibold tracking-[0.25em] text-[#3f6f5f] uppercase">
+          <p className="text-s font-bold tracking-[0.15em] text-[#3F6F5F] uppercase">
             Prestige Property
           </p>
 

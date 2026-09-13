@@ -1,16 +1,63 @@
 import { NextResponse } from "next/server";
+
 import { connectDB } from "@/lib/mongodb";
+
 import Enquiry from "@/models/Enquiry";
 import Customer from "@/models/Customer";
 import Plot from "@/models/Plot";
 import Project from "@/models/Project";
 import City from "@/models/City";
 
-// GET ALL ENQUIRIES
-export async function GET() {
+import { verifyToken, isAdmin } from "@/lib/auth";
+
+export async function GET(request) {
   try {
     await connectDB();
 
+    // GET TOKEN FROM COOKIE
+    const token = request.cookies.get("token")?.value;
+
+    if (!token) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Unauthorized. Please login",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    // VERIFY TOKEN
+    const result = verifyToken(token);
+
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: result.message,
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    // CHECK ADMIN ROLE
+    if (!isAdmin(result.user)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Access denied. Admin only",
+        },
+        {
+          status: 403,
+        }
+      );
+    }
+
+    // FETCH ALL ENQUIRIES
     const enquiries = await Enquiry.find()
       .populate("customer")
       .populate({
@@ -22,19 +69,26 @@ export async function GET() {
           },
         },
       })
-      .sort({ createdAt: -1 });
+      .sort({
+        createdAt: -1,
+      });
 
-    return NextResponse.json({
-      success: true,
-      data: enquiries,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        data: enquiries,
+      },
+      {
+        status: 200,
+      }
+    );
   } catch (error) {
     console.error("Get enquiries error:", error);
 
     return NextResponse.json(
       {
         success: false,
-        message: error.message,
+        message: error.message || "Failed to fetch enquiries",
       },
       {
         status: 500,
@@ -43,98 +97,74 @@ export async function GET() {
   }
 }
 
-// CREATE ENQUIRY
 export async function POST(request) {
   try {
     await connectDB();
 
-    const body = await request.json();
-
-    const { name, phone, email, message, plotId } = body;
-
-    // VALIDATION
-    if (!name || !phone || !plotId) {
+    // Require a logged-in user (your Enquiry schema requires `user`)
+    const token = request.cookies.get("token")?.value;
+    if (!token) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Name, phone and plot are required",
-        },
-        {
-          status: 400,
-        }
+        { success: false, message: "Unauthorized. Please login" },
+        { status: 401 }
       );
     }
 
-    // CHECK PLOT
-    const plot = await Plot.findById(plotId);
+    const result = verifyToken(token);
+    if (!result.success) {
+      return NextResponse.json(
+        { success: false, message: result.message },
+        { status: 401 }
+      );
+    }
 
+    const { plotId, name, phone, email, message } = await request.json();
+
+    if (!plotId || !name || !phone) {
+      return NextResponse.json(
+        { success: false, message: "Plot, name and phone are required" },
+        { status: 400 }
+      );
+    }
+
+    const plot = await Plot.findById(plotId);
     if (!plot) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Property not found",
-        },
-        {
-          status: 404,
-        }
+        { success: false, message: "Plot not found" },
+        { status: 404 }
       );
     }
 
-    // FIND EXISTING CUSTOMER
-    let customer = await Customer.findOne({
-      phone,
-    });
-
-    // CREATE CUSTOMER IF NOT EXISTS
+    // Reuse an existing customer record (matched by phone) or create one
+    let customer = await Customer.findOne({ phone });
     if (!customer) {
-      customer = await Customer.create({
-        name,
-        phone,
-        email: email || "",
-      });
+      customer = await Customer.create({ name, phone, email });
+    } else {
+      customer.name = name;
+      if (email) customer.email = email;
+      await customer.save();
     }
 
-    // CREATE ENQUIRY
     const enquiry = await Enquiry.create({
+      user: result.user.userId,
       customer: customer._id,
-      plot: plot._id,
-      message: message || "",
+      plot: plotId,
+      message,
     });
-
-    // POPULATE DATA
-    const populatedEnquiry = await Enquiry.findById(enquiry._id)
-      .populate("customer")
-      .populate({
-        path: "plot",
-        populate: {
-          path: "project",
-          populate: {
-            path: "city",
-          },
-        },
-      });
 
     return NextResponse.json(
       {
         success: true,
         message: "Enquiry submitted successfully",
-        data: populatedEnquiry,
+        data: enquiry,
       },
-      {
-        status: 201,
-      }
+      { status: 201 }
     );
   } catch (error) {
     console.error("Create enquiry error:", error);
-
     return NextResponse.json(
-      {
-        success: false,
-        message: error.message,
-      },
-      {
-        status: 500,
-      }
+      { success: false, message: error.message || "Failed to submit enquiry" },
+      { status: 500 }
     );
   }
 }
